@@ -45,7 +45,7 @@ int main() {
 
     printf("\nChoose Storage Method:\n1. Triplet Array\n2. Linked List\nChoice: ");
     scanf("%d", &choice);
-
+// commented part is for sparse matrix creation  and display with linked list and array 
 //     if (choice == 1) {
 //         // Module 2: Array Creation
 //         struct Element *triplet = (struct Element*)malloc((nz + 1) * sizeof(struct Element));
