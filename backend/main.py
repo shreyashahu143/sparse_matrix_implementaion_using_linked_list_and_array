@@ -8,6 +8,8 @@
 # Run with:
 #   uvicorn main:app --reload --port 8000
 
+import subprocess
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from models import BinaryOperationRequest, UnaryOperationRequest, SparseResult
@@ -45,10 +47,34 @@ def add(req: BinaryOperationRequest):
             detail=f"Dimension mismatch: A is {req.a.width}×{req.a.height}, B is {req.b.width}×{req.b.height}"
         )
 
-    # ── STUB: replace this block with subprocess C call ──
-    # Real logic: merge entries from A and B, sum values at same (row, col)
-    result_entries = req.a.entries  # placeholder — returns A unchanged
-    # ── end stub ──
+    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+
+    # Build payload — count first, then entries
+    lines = [str(len(req.a.entries))]
+    for e in req.a.entries:
+        lines.append(f"{e[0]} {e[1]} {e[2]}")
+    lines.append(str(len(req.b.entries)))
+    for e in req.b.entries:
+        lines.append(f"{e[0]} {e[1]} {e[2]}")
+
+    payload = "\n".join(lines)
+
+    result = subprocess.run(
+        [binary, "ADD"],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=30
+    )
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=result.stderr)
+
+    result_entries = []
+    for line in result.stdout.strip().split("\n"):
+        if line:
+            parts = line.split()
+            result_entries.append([int(parts[0]), int(parts[1]), int(parts[2])])
 
     return SparseResult(
         entries=result_entries,
@@ -67,9 +93,34 @@ def subtract(req: BinaryOperationRequest):
             detail=f"Dimension mismatch: A is {req.a.width}×{req.a.height}, B is {req.b.width}×{req.b.height}"
         )
 
-    # ── STUB: replace this block with subprocess C call ──
-    result_entries = req.a.entries
-    # ── end stub ──
+    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+
+    # Build payload — count first, then entries
+    lines = [str(len(req.a.entries))]
+    for e in req.a.entries:
+        lines.append(f"{e[0]} {e[1]} {e[2]}")
+    lines.append(str(len(req.b.entries)))
+    for e in req.b.entries:
+        lines.append(f"{e[0]} {e[1]} {e[2]}")
+
+    payload = "\n".join(lines)
+
+    result = subprocess.run(
+        [binary, "SUBTRACT"],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=30
+    )
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=result.stderr)
+
+    result_entries = []
+    for line in result.stdout.strip().split("\n"):
+        if line:
+            parts = line.split()
+            result_entries.append([int(parts[0]), int(parts[1]), int(parts[2])])
 
     return SparseResult(
         entries=result_entries,
@@ -77,6 +128,7 @@ def subtract(req: BinaryOperationRequest):
         cols=req.a.width,
         nnz=len(result_entries),
     )
+    
 
 
 # ── MULTIPLY ──

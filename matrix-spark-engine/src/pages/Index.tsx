@@ -16,6 +16,8 @@ import {
 } from "@/lib/sparse-matrix";
 import { apiAdd, apiSubtract, apiMultiply, apiTranspose, checkBackendHealth } from "@/lib/api";
 
+type Representation = "ARRAY" | "LINKEDLIST";
+
 const Index = () => {
   const { toast } = useToast();
 
@@ -25,19 +27,15 @@ const Index = () => {
   const [resultSparse, setResultSparse] = useState<SparseMatrix | null>(null);
   const [processing, setProcessing] = useState(false);
 
+  // "ARRAY" → sparse_array.exe, "LINKEDLIST" → sparse_linkedlist.exe
+  // This gets passed to every API call so FastAPI routes to the correct binary.
+  const [representation, setRepresentation] = useState<Representation>("LINKEDLIST");
+
   // ── Image refs ──
-  // We store the original HTMLImageElement here so we can re-run
-  // imageToSparseMatrix when the threshold slider changes.
-  // useRef — not useState — because storing the element should NOT
-  // trigger a re-render on its own. It's just a data hold.
   const imgARef = useRef<HTMLImageElement | null>(null);
   const imgBRef = useRef<HTMLImageElement | null>(null);
 
-  // ── Recompute matrices when threshold changes ──
-  // Debounced: 120ms after the user stops dragging.
-  // Without this, every drag pixel fires a full image recompute → UI freeze.
-  // The cleanup function cancels the timeout if threshold changes again
-  // before 120ms — so only the final resting value triggers the work.
+  // ── Recompute matrices when threshold changes (debounced 120ms) ──
   useEffect(() => {
     const timer = setTimeout(() => {
       if (imgARef.current) {
@@ -46,8 +44,6 @@ const Index = () => {
       if (imgBRef.current) {
         const sb = imageToSparseMatrix(imgBRef.current, threshold);
         setSparseB(sb);
-        // Re-run dimension check with fresh matrices at new threshold
-        // sparseA here is the OLD value — use the recomputed one for accurate check
         if (imgARef.current) {
           const sa = imageToSparseMatrix(imgARef.current, threshold);
           if (sa.rows !== sb.rows || sa.cols !== sb.cols) {
@@ -59,18 +55,14 @@ const Index = () => {
           }
         }
       }
-      // Clear any stale result — it was computed at the old threshold
       setResultSparse(null);
     }, 120);
-
-    return () => clearTimeout(timer); // cleanup on next render
+    return () => clearTimeout(timer);
   }, [threshold]); // eslint-disable-line react-hooks/exhaustive-deps
-  // toast intentionally excluded from deps — it's stable, adding it
-  // would cause the effect to re-register on every render needlessly.
 
   const handleImageA = useCallback(
     (img: HTMLImageElement | null) => {
-      imgARef.current = img; // store ref first
+      imgARef.current = img;
       if (!img) { setSparseA(null); return; }
       setSparseA(imageToSparseMatrix(img, threshold));
     },
@@ -79,17 +71,15 @@ const Index = () => {
 
   const handleImageB = useCallback(
     (img: HTMLImageElement | null) => {
-      imgBRef.current = img; // store ref first
+      imgBRef.current = img;
       if (!img) { setSparseB(null); return; }
       const sb = imageToSparseMatrix(img, threshold);
       setSparseB(sb);
-
-      // ── Early dimension warning ──
       if (sparseA && (sb.rows !== sparseA.rows || sb.cols !== sparseA.cols)) {
         toast({
           variant: "destructive",
           title: "Resolution mismatch",
-          description: `Image A is ${sparseA.cols}×${sparseA.rows}px, Image B is ${sb.cols}×${sb.rows}px. Addition and subtraction require identical dimensions. Upload images of the same resolution.`,
+          description: `Image A is ${sparseA.cols}×${sparseA.rows}px, Image B is ${sb.cols}×${sb.rows}px. Addition and subtraction require identical dimensions.`,
         });
       }
     },
@@ -97,8 +87,6 @@ const Index = () => {
   );
 
   // ── Backend health check on mount ──
-  // Agar server chal nahi raha toh user ko pehle hi bata do.
-  // Warna wo operation click karega aur generic "fetch failed" aayega.
   useEffect(() => {
     checkBackendHealth().then((ok) => {
       if (!ok) {
@@ -115,7 +103,6 @@ const Index = () => {
     async (operation: string) => {
       if (!sparseA) return;
 
-      // ── Dimension guards ──
       if (operation === "ADDITION" || operation === "SUBTRACTION") {
         if (!sparseB) {
           toast({ variant: "destructive", title: "Image B required", description: "Upload a second image to perform this operation." });
@@ -148,23 +135,23 @@ const Index = () => {
 
       setProcessing(true);
 
-      // No requestAnimationFrame needed — await naturally yields to event loop
-      // so React flushes processing=true before the fetch goes out.
       try {
         let result: SparseMatrix;
 
+        // representation is passed to every API call so FastAPI knows
+        // which binary to invoke: sparse_array.exe or sparse_linkedlist.exe
         switch (operation) {
           case "ADDITION":
-            result = await apiAdd(sparseA, sparseB!, threshold);
+            result = await apiAdd(sparseA, sparseB!, threshold, representation);
             break;
           case "SUBTRACTION":
-            result = await apiSubtract(sparseA, sparseB!, threshold);
+            result = await apiSubtract(sparseA, sparseB!, threshold, representation);
             break;
           case "MULTIPLICATION":
-            result = await apiMultiply(sparseA, sparseB!, threshold);
+            result = await apiMultiply(sparseA, sparseB!, threshold, representation);
             break;
           case "TRANSPOSE":
-            result = await apiTranspose(sparseA, threshold);
+            result = await apiTranspose(sparseA, threshold, representation);
             break;
           default:
             return;
@@ -173,7 +160,7 @@ const Index = () => {
         setResultSparse(result);
         toast({
           title: "Operation complete",
-          description: `${operation} produced ${result.entries.length.toLocaleString()} non-zero entries.`,
+          description: `${operation} via ${representation} produced ${result.entries.length.toLocaleString()} non-zero entries.`,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
@@ -183,14 +170,13 @@ const Index = () => {
         setProcessing(false);
       }
     },
-    [sparseA, sparseB, threshold, toast]
+    [sparseA, sparseB, threshold, representation, toast]
   );
 
   const stats = resultSparse ? computeStats(resultSparse) : null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col animate-flicker">
-      {/* Scanline overlay */}
       <div className="fixed inset-0 scanline-overlay z-50" />
 
       <MatrixHeader />
@@ -220,6 +206,37 @@ const Index = () => {
           className="panel p-4 relative z-10"
         >
           <StepGuide />
+        </motion.div>
+
+        {/* Representation Toggle */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.35, duration: 0.5 }}
+          className="panel p-3 flex items-center gap-4"
+        >
+          <span className="text-[11px] text-muted-foreground uppercase tracking-widest">
+            Storage Model
+          </span>
+          <div className="flex gap-2">
+            {(["LINKEDLIST", "ARRAY"] as Representation[]).map((rep) => (
+              <button
+                key={rep}
+                onClick={() => setRepresentation(rep)}
+                className={`px-3 py-1 text-[11px] uppercase tracking-widest border transition-colors ${
+                  representation === rep
+                    ? "border-primary text-primary bg-primary/10"
+                    : "border-muted text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                {rep === "LINKEDLIST" ? "Linked List" : "Array"}
+              </button>
+            ))}
+          </div>
+          {/* Shows which binary will be called — useful for demo */}
+          <span className="text-[10px] text-muted-foreground ml-auto font-mono">
+            → {representation === "LINKEDLIST" ? "linkedlist.exe" : "sparse_array.exe"}
+          </span>
         </motion.div>
 
         {/* Main Grid */}
@@ -278,7 +295,6 @@ const Index = () => {
         nnz={stats?.nnz ?? null}
         compressionRatio={stats?.compressionRatio ?? null}
       />
-      {/* Toaster must be mounted for toasts to render */}
       <Toaster />
     </div>
   );

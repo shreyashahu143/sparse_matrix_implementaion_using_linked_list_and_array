@@ -1,14 +1,7 @@
-// api.ts — all HTTP calls to FastAPI in one place
-//
-// Nothing in this file does any matrix math.
-// It only knows how to: serialize payload → send → deserialize response.
-// When backend URL changes (e.g. deployed), change BASE_URL here only.
-
 import { toAPIPayload, type SparseMatrix, type SparseMatrixPayload } from "./sparse-matrix";
 
 const BASE_URL = "http://localhost:8000";
 
-// ── Response type from FastAPI ──
 interface SparseResult {
   entries: [number, number, number][];
   rows: number;
@@ -16,9 +9,6 @@ interface SparseResult {
   nnz: number;
 }
 
-// ── Convert FastAPI response back to SparseMatrix ──
-// Frontend works with SparseMatrix objects everywhere.
-// This keeps the conversion in one place.
 function resultToSparseMatrix(result: SparseResult): SparseMatrix {
   return {
     rows: result.rows,
@@ -27,8 +17,6 @@ function resultToSparseMatrix(result: SparseResult): SparseMatrix {
   };
 }
 
-// ── Generic POST helper ──
-// All our endpoints are POST with JSON body — no point repeating fetch boilerplate.
 async function post<T>(endpoint: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: "POST",
@@ -37,7 +25,6 @@ async function post<T>(endpoint: string, body: unknown): Promise<T> {
   });
 
   if (!res.ok) {
-    // FastAPI sends { detail: "..." } on errors — surface that message
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail ?? `Request failed: ${res.status}`);
   }
@@ -46,40 +33,63 @@ async function post<T>(endpoint: string, body: unknown): Promise<T> {
 }
 
 // ── Public API functions ──
-// These are what Index.tsx calls instead of the local addSparse/subtractSparse etc.
+// representation = "ARRAY" | "LINKEDLIST"
+// FastAPI uses this to pick the correct .exe
 
-export async function apiAdd(a: SparseMatrix, b: SparseMatrix, threshold: number): Promise<SparseMatrix> {
+export async function apiAdd(
+  a: SparseMatrix,
+  b: SparseMatrix,
+  threshold: number,
+  representation: "ARRAY" | "LINKEDLIST"
+): Promise<SparseMatrix> {
   const result = await post<SparseResult>("/sparse/add", {
     a: toAPIPayload(a, threshold),
     b: toAPIPayload(b, threshold),
+    representation,
   });
   return resultToSparseMatrix(result);
 }
 
-export async function apiSubtract(a: SparseMatrix, b: SparseMatrix, threshold: number): Promise<SparseMatrix> {
+export async function apiSubtract(
+  a: SparseMatrix,
+  b: SparseMatrix,
+  threshold: number,
+  representation: "ARRAY" | "LINKEDLIST"
+): Promise<SparseMatrix> {
   const result = await post<SparseResult>("/sparse/subtract", {
     a: toAPIPayload(a, threshold),
     b: toAPIPayload(b, threshold),
+    representation,
   });
   return resultToSparseMatrix(result);
 }
 
-export async function apiMultiply(a: SparseMatrix, b: SparseMatrix, threshold: number): Promise<SparseMatrix> {
+export async function apiMultiply(
+  a: SparseMatrix,
+  b: SparseMatrix,
+  threshold: number,
+  representation: "ARRAY" | "LINKEDLIST"
+): Promise<SparseMatrix> {
   const result = await post<SparseResult>("/sparse/multiply", {
     a: toAPIPayload(a, threshold),
     b: toAPIPayload(b, threshold),
+    representation,
   });
   return resultToSparseMatrix(result);
 }
 
-export async function apiTranspose(a: SparseMatrix, threshold: number): Promise<SparseMatrix> {
+export async function apiTranspose(
+  a: SparseMatrix,
+  threshold: number,
+  representation: "ARRAY" | "LINKEDLIST"
+): Promise<SparseMatrix> {
   const result = await post<SparseResult>("/sparse/transpose", {
     a: toAPIPayload(a, threshold),
+    representation,
   });
   return resultToSparseMatrix(result);
 }
 
-// ── Health check — call this on app load to confirm backend is reachable ──
 export async function checkBackendHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/health`);
