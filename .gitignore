@@ -1,4 +1,6 @@
 *.exe
 *.obj
 venv
+.venv311
 .venv
+__pycache__
