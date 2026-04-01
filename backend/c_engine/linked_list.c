@@ -105,6 +105,17 @@ struct node* subtract_matrices(struct node* a, struct node* b){
     }
     return res_head;
 }
+struct node* transpose_matrix(struct node* head){
+    struct node* res_head=NULL;
+    struct node* res_tail=NULL;
+    struct node* temp= head;
+
+    while(temp!=NULL){
+        insert_node(&res_head, &res_tail, temp->col,temp->row,temp->value);
+        temp=temp->next;
+    }
+    return res_head;
+}
 
 int main(int argc,char *argv[]){
 
@@ -120,15 +131,20 @@ int main(int argc,char *argv[]){
     
     int r,c,v;
     int n;
-    scanf("%d", &n);  // number of entries in matrix A
+    // Read matrix A
+    scanf("%d", &n);
     for(int i=0; i<n; i++){
         scanf("%d %d %d",&r,&c,&v);
         insert_node(&Head_a, &Tail_a, r, c, v);
     }
-    scanf("%d", &n);  // number of entries in matrix B
-    for(int i=0; i<n; i++){
-        scanf("%d %d %d",&r,&c,&v);
-        insert_node(&Head_b, &Tail_b, r, c, v);
+    
+    // Only read matrix B for binary operations
+    if(strcmp(argv[1],"ADD")==0 || strcmp(argv[1],"SUBTRACT")==0){
+        scanf("%d", &n);
+        for(int i=0; i<n; i++){
+            scanf("%d %d %d",&r,&c,&v);
+            insert_node(&Head_b, &Tail_b, r, c, v);
+        }
     }
 
     struct node* result=NULL;
@@ -139,6 +155,9 @@ int main(int argc,char *argv[]){
     else if(strcmp(argv[1],"SUBTRACT")==0){
         result=subtract_matrices(Head_a,Head_b);
     }
+    else if(strcmp(argv[1],"TRANSPOSE")==0){
+    result=transpose_matrix(Head_a);
+    }   
     else{
         fprintf(stderr,"Invalid operation. Use ADD or SUBTRACT.\n");
         return 1;

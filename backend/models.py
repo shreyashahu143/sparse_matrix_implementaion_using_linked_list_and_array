@@ -26,6 +26,7 @@ class BinaryOperationRequest(BaseModel):
 
 class UnaryOperationRequest(BaseModel):
     a: SparsePayload
+    representation: str  # "ARRAY" | "LINKEDLIST" — Literal not supported cleanly in pydantic v1
 
 
 class SparseResult(BaseModel):

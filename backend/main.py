@@ -156,14 +156,35 @@ def multiply(req: BinaryOperationRequest):
 # ── TRANSPOSE ──
 @app.post("/sparse/transpose", response_model=SparseResult)
 def transpose(req: UnaryOperationRequest):
-    # ── STUB: replace this block with subprocess C call ──
-    # Real logic: swap row and col for every entry
-    result_entries = [[e[1], e[0], e[2]] for e in req.a.entries]  # swap row↔col
-    # ── end stub —— this one is simple enough that the stub IS correct logic
+    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+
+    # Build payload — count first, then entries
+    lines = [str(len(req.a.entries))]
+    for e in req.a.entries:
+        lines.append(f"{e[0]} {e[1]} {e[2]}")
+
+    payload = "\n".join(lines)
+
+    result = subprocess.run(
+        [binary, "TRANSPOSE"],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=30
+    )
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=result.stderr)
+
+    result_entries = []
+    for line in result.stdout.strip().split("\n"):
+        if line:
+            parts = line.split()
+            result_entries.append([int(parts[0]), int(parts[1]), int(parts[2])])
 
     return SparseResult(
         entries=result_entries,
-        rows=req.a.width,   # transposed: rows become cols
+        rows=req.a.width,   # transposed: rows ↔ cols
         cols=req.a.height,
         nnz=len(result_entries),
     )
