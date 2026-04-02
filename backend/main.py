@@ -47,7 +47,7 @@ def add(req: BinaryOperationRequest):
             detail=f"Dimension mismatch: A is {req.a.width}×{req.a.height}, B is {req.b.width}×{req.b.height}"
         )
 
-    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+    binary = "./c_engine/array_engine.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
 
     # Build payload — count first, then entries
     lines = [str(len(req.a.entries))]
@@ -93,7 +93,7 @@ def subtract(req: BinaryOperationRequest):
             detail=f"Dimension mismatch: A is {req.a.width}×{req.a.height}, B is {req.b.width}×{req.b.height}"
         )
 
-    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+    binary = "./c_engine/array_engine.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
 
     # Build payload — count first, then entries
     lines = [str(len(req.a.entries))]
@@ -141,7 +141,7 @@ def multiply(req: BinaryOperationRequest):
             detail=f"Dimension mismatch: A.cols={req.a.width} must equal B.rows={req.b.height}"
         )
 
-    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+    binary = "./c_engine/array_engine.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
 
     # Build payload — count first, then entries
     lines = [str(len(req.a.entries))]
@@ -182,7 +182,7 @@ def multiply(req: BinaryOperationRequest):
 # ── TRANSPOSE ──
 @app.post("/sparse/transpose", response_model=SparseResult)
 def transpose(req: UnaryOperationRequest):
-    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+    binary = "./c_engine/array_engine.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
 
     # Build payload — count first, then entries
     lines = [str(len(req.a.entries))]
