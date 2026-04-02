@@ -141,14 +141,40 @@ def multiply(req: BinaryOperationRequest):
             detail=f"Dimension mismatch: A.cols={req.a.width} must equal B.rows={req.b.height}"
         )
 
-    # ── STUB: replace this block with subprocess C call ──
-    result_entries = req.a.entries
-    # ── end stub ──
+    binary = "./c_engine/sparse_array.exe" if req.representation == "ARRAY" else "./c_engine/linked_list.exe"
+
+    # Build payload — count first, then entries
+    lines = [str(len(req.a.entries))]
+    for e in req.a.entries:
+        lines.append(f"{e[0]} {e[1]} {e[2]}")
+    lines.append(str(len(req.b.entries)))
+    for e in req.b.entries:
+        lines.append(f"{e[0]} {e[1]} {e[2]}")
+
+    payload = "\n".join(lines)
+
+    result = subprocess.run(
+        [binary, "MULTIPLY"],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=120
+    )
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=result.stderr)
+
+    result_entries = []
+    for line in result.stdout.strip().split("\n"):
+        if line:
+            parts = line.split()
+            result_entries.append([int(parts[0]), int(parts[1]), int(parts[2])])
+
 
     return SparseResult(
         entries=result_entries,
-        rows=req.a.height,
-        cols=req.b.width,
+        rows=req.a.height,      # Result rows = A's rows
+        cols=req.b.width,       # Result cols = B's cols  ← YOU HAVE THIS WRONG TOO
         nnz=len(result_entries),
     )
 
