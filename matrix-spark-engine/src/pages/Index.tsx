@@ -209,13 +209,13 @@ const Index = () => {
         </motion.div>
 
         {/* Representation Toggle */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.5 }}
           className="panel p-3 flex items-center gap-4"
-        >
-          <span className="text-[11px] text-muted-foreground uppercase tracking-widest">
+        > */}
+          {/* <span className="text-[11px] text-muted-foreground uppercase tracking-widest">
             Storage Model
           </span>
           <div className="flex gap-2">
@@ -234,10 +234,10 @@ const Index = () => {
             ))}
           </div>
           {/* Shows which binary will be called — useful for demo */}
-          <span className="text-[10px] text-muted-foreground ml-auto font-mono">
-            → {representation === "LINKEDLIST" ? "linkedlist.exe" : "sparse_array.exe"}
-          </span>
-        </motion.div>
+          {/* <span className="text-[10px] text-muted-foreground ml-auto font-mono">
+            → {representation === "LINKEDLIST" ? "linkedlist.exe" : "array_engine.exe"}
+          // </span> */} 
+        {/* </motion.div> */}
 
         {/* Main Grid */}
         <div className="grid grid-cols-12 gap-4">
