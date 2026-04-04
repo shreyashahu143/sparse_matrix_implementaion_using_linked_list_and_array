@@ -64,7 +64,7 @@ def add(req: BinaryOperationRequest):
         input=payload,
         capture_output=True,
         text=True,
-        timeout=30
+        timeout=120
     )
 
     if result.returncode != 0:
@@ -110,7 +110,7 @@ def subtract(req: BinaryOperationRequest):
         input=payload,
         capture_output=True,
         text=True,
-        timeout=30
+        timeout=120
     )
 
     if result.returncode != 0:
@@ -196,7 +196,7 @@ def transpose(req: UnaryOperationRequest):
         input=payload,
         capture_output=True,
         text=True,
-        timeout=30
+        timeout=120
     )
 
     if result.returncode != 0:
